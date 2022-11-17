@@ -660,6 +660,10 @@ impl Config {
                     panic!("unsupported msvc target: {}", target);
                 }
             }
+
+        } else if target.contains("macabi") {
+            cmd.arg(format!("-DCMAKE_OSX_SYSROOT={}",  "iphonesimulator"));
+            cmd.arg(format!("-DCMAKE_OSX_DEPLOYMENT_TARGET={}", "13.0"));
         } else if target.contains("apple-ios") || target.contains("apple-tvos") {
             // These two flags prevent CMake from adding an OSX sysroot, which messes up compilation.
             if !self.defined("CMAKE_OSX_SYSROOT") && !self.defined("CMAKE_OSX_DEPLOYMENT_TARGET") {
@@ -677,6 +681,8 @@ impl Config {
                 }
             }
         }
+
+
         if let Some(ref generator) = generator {
             cmd.arg("-G").arg(generator);
         }
