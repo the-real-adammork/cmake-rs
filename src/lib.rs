@@ -667,8 +667,8 @@ impl Config {
         } else if target.contains("apple-ios") || target.contains("apple-tvos") {
             // These two flags prevent CMake from adding an OSX sysroot, which messes up compilation.
             if !self.defined("CMAKE_OSX_SYSROOT") && !self.defined("CMAKE_OSX_DEPLOYMENT_TARGET") {
-                cmd.arg("-DCMAKE_OSX_SYSROOT=/");
-                cmd.arg("-DCMAKE_OSX_DEPLOYMENT_TARGET=");
+                cmd.arg("-DCMAKE_OSX_SYSROOT=iphonesimulator");
+                cmd.arg("-DCMAKE_OSX_DEPLOYMENT_TARGET=7.0");
             }
         } else if target.contains("darwin") {
             if !self.defined("CMAKE_OSX_ARCHITECTURES") {
