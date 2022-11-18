@@ -663,7 +663,8 @@ impl Config {
 
         } else if target.contains("macabi") {
             cmd.arg(format!("-DCMAKE_OSX_SYSROOT={}",  "iphonesimulator"));
-            cmd.arg(format!("-DCMAKE_OSX_DEPLOYMENT_TARGET={}", "13.0"));
+            let deploymentTarget = std::env::var("MACABI_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into());
+            cmd.arg(format!("-DCMAKE_OSX_DEPLOYMENT_TARGET={}", deploymentTarget));
         } else if target.contains("apple-ios") || target.contains("apple-tvos") {
             // These two flags prevent CMake from adding an OSX sysroot, which messes up compilation.
             if !self.defined("CMAKE_OSX_SYSROOT") && !self.defined("CMAKE_OSX_DEPLOYMENT_TARGET") {
