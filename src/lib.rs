@@ -660,11 +660,19 @@ impl Config {
                     panic!("unsupported msvc target: {}", target);
                 }
             }
+
+        } else if target.contains("macabi") {
+            cmd.arg(format!("-DCMAKE_SYSTEM_NAME={}",  "iOS"));
+
+            let cc = cc::Build::new();
+            let sdk_path = cc.try_get_apple_sdk_path("macosx").expect("xcrun for macosx should succeed");
+            cmd.arg(format!("-DCMAKE_OSX_SYSROOT={}",  sdk_path.into_string().unwrap()));
+            //cmd.arg(format!("-DCMAKE_OSX_SYSROOT={}",  "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"));
         } else if target.contains("apple-ios") || target.contains("apple-tvos") {
             // These two flags prevent CMake from adding an OSX sysroot, which messes up compilation.
             if !self.defined("CMAKE_OSX_SYSROOT") && !self.defined("CMAKE_OSX_DEPLOYMENT_TARGET") {
-                cmd.arg("-DCMAKE_OSX_SYSROOT=/");
-                cmd.arg("-DCMAKE_OSX_DEPLOYMENT_TARGET=");
+                cmd.arg("-DCMAKE_OSX_SYSROOT=iphonesimulator");
+                cmd.arg("-DCMAKE_OSX_DEPLOYMENT_TARGET=7.0");
             }
         } else if target.contains("darwin") {
             if !self.defined("CMAKE_OSX_ARCHITECTURES") {
@@ -677,6 +685,8 @@ impl Config {
                 }
             }
         }
+
+
         if let Some(ref generator) = generator {
             cmd.arg("-G").arg(generator);
         }

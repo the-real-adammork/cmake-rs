@@ -15,4 +15,8 @@ categories = ["development-tools::build-utils"]
 edition = "2021"
 
 [dependencies]
-cc = "1.0.72"
+cc = "1.0.78"
+
+[patch.crates-io]
+# Patch of CC 1.0.78 that configures macabi targets correctly
+cc = { git = "https://github.com/mobilecoinofficial/cc-rs.git", rev = "b3d13d7b46a1f813ded4a1976e015143769946c6" }
