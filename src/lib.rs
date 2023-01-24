@@ -285,6 +285,7 @@ impl Config {
     /// This is automatically scraped from `$TARGET` which is set for Cargo
     /// build scripts so it's not necessary to call this from a build script.
     pub fn target(&mut self, target: &str) -> &mut Config {
+        //self.target = Some(String::from("arm64-apple-ios-macabi"));
         self.target = Some(target.to_string());
         self
     }
@@ -662,9 +663,8 @@ impl Config {
             }
 
         } else if target.contains("macabi") {
-            cmd.arg(format!("-DCMAKE_OSX_SYSROOT={}",  "iphonesimulator"));
-            let deploymentTarget = std::env::var("MACABI_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into());
-            cmd.arg(format!("-DCMAKE_OSX_DEPLOYMENT_TARGET={}", deploymentTarget));
+            cmd.arg(format!("-DCMAKE_SYSTEM_NAME={}",  "iOS"));
+            cmd.arg(format!("-DCMAKE_OSX_SYSROOT={}",  "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"));
         } else if target.contains("apple-ios") || target.contains("apple-tvos") {
             // These two flags prevent CMake from adding an OSX sysroot, which messes up compilation.
             if !self.defined("CMAKE_OSX_SYSROOT") && !self.defined("CMAKE_OSX_DEPLOYMENT_TARGET") {
@@ -1090,6 +1090,85 @@ fn run(cmd: &mut Command, program: &str) {
             "command did not execute successfully, got: {}",
             status
         ));
+    }
+}
+
+fn run_output(cmd: &mut Command, program: &str) -> Result<Vec<u8>, Error> {
+    cmd.stdout(Stdio::piped());
+    let (mut child, print) = spawn(cmd, program)?;
+    let mut stdout = vec![];
+    child
+        .stdout
+        .take()
+        .unwrap()
+        .read_to_end(&mut stdout)
+        .unwrap();
+    let status = match child.wait() {
+        Ok(s) => s,
+        Err(_) => {
+            return Err(Error::new(
+                ErrorKind::ToolExecError,
+                &format!(
+                    "Failed to wait on spawned child process, command {:?} with args {:?}.",
+                    cmd, program
+                ),
+            ));
+        }
+    };
+    print.join().unwrap();
+    println!("{}", status);
+
+    if status.success() {
+        Ok(stdout)
+    } else {
+        Err(Error::new(
+            ErrorKind::ToolExecError,
+            &format!(
+                "Command {:?} with args {:?} did not execute successfully (status code {}).",
+                cmd, program, status
+            ),
+        ))
+    }
+}
+
+fn spawn(cmd: &mut Command, program: &str) -> Result<(Child, JoinHandle<()>), Error> {
+    println!("running: {:?}", cmd);
+
+    // Capture the standard error coming from these programs, and write it out
+    // with cargo:warning= prefixes. Note that this is a bit wonky to avoid
+    // requiring the output to be UTF-8, we instead just ship bytes from one
+    // location to another.
+    match cmd.stderr(Stdio::piped()).spawn() {
+        Ok(mut child) => {
+            let stderr = BufReader::new(child.stderr.take().unwrap());
+            let print = thread::spawn(move || {
+                for line in stderr.split(b'\n').filter_map(|l| l.ok()) {
+                    print!("cargo:warning=");
+                    std::io::stdout().write_all(&line).unwrap();
+                    println!("");
+                }
+            });
+            Ok((child, print))
+        }
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+            let extra = if cfg!(windows) {
+                " (see https://github.com/rust-lang/cc-rs#compile-time-requirements \
+                 for help)"
+            } else {
+                ""
+            };
+            Err(Error::new(
+                ErrorKind::ToolNotFound,
+                &format!("Failed to find tool. Is `{}` installed?{}", program, extra),
+            ))
+        }
+        Err(ref e) => Err(Error::new(
+            ErrorKind::ToolExecError,
+            &format!(
+                "Command {:?} with args {:?} failed to start: {:?}",
+                cmd, program, e
+            ),
+        )),
     }
 }
 
